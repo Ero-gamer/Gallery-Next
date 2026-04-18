@@ -50,7 +50,7 @@ class JxlSketchDecoder(
             // Decode just enough to retrieve dimensions without full decode.
             val bytes = dataSource.openSource().buffer().readByteArray()
             val size = try {
-                val bmp = JxlCoder().decode(bytes)
+                val bmp = JxlCoder.decode(bytes)
                 Size(bmp.width, bmp.height)
             } catch (e: Exception) {
                 Size(0, 0)
@@ -60,7 +60,7 @@ class JxlSketchDecoder(
 
     override fun decode(): ImageData {
         val bytes = dataSource.openSource().buffer().readByteArray()
-        val bitmap: Bitmap = JxlCoder().decode(bytes)
+        val bitmap: Bitmap = JxlCoder.decode(bytes)
 
         val imageSize = Size(bitmap.width, bitmap.height)
         val resize = requestContext.computeResize(imageSize)
