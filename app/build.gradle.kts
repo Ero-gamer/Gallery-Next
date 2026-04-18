@@ -147,30 +147,40 @@ dependencies {
     implementation(libs.androidx.print)
     implementation(libs.android.image.cropper)
     implementation(libs.exif)
-    implementation(libs.android.gif.drawable)
     implementation(libs.androidx.lifecycle.runtime)
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.documentfile)
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.sanselan)
     implementation(libs.androidphotofilters)
+    // androidsvg-aar is now pulled in transitively by sketch-svg, but kept explicit for clarity
     implementation(libs.androidsvg.aar)
     implementation(libs.gestureviews)
     implementation(libs.subsamplingscaleimageview)
     implementation(libs.androidx.swiperefreshlayout)
-    implementation(libs.awebp)
-    implementation(libs.apng)
-    implementation(libs.avif)
-    implementation(libs.avif.integration)
-    implementation(libs.jxl.integration)
     implementation(libs.okio)
-    implementation(libs.picasso) {
-        exclude(group = "com.squareup.okhttp3", module = "okhttp")
-    }
-    compileOnly(libs.okhttp)
 
-    ksp(libs.glide.compiler)
-    implementation(libs.zjupure.webpdecoder)
+    // Sketch image loading – replaces Glide + Picasso + zjupure-webpdecoder + jxl-coder-glide
+    // sketch-view  = sketch-view-core + sketch-singleton (singleton loadImage extensions)
+    // sketch-animated-gif         → GIF (MovieGifDecoder API<28, ImageDecoderGifDecoder API>=28)
+    // sketch-animated-gif-koral   → GIF fallback via koral android-gif-drawable
+    // sketch-animated-webp        → animated WebP (ImageDecoderAnimatedWebpDecoder API>=28)
+    // sketch-svg                  → SVG (uses androidsvg-aar internally on Android)
+    // sketch-extensions-view      → SketchImageView + scroll-pause helpers
+    // All decoders above auto-register via ServiceLoader – no manual Sketch.Builder needed
+    // unless you are also adding the custom JxlDecoder (handled in App.kt).
+    implementation(libs.bundles.sketch)
+
+    // Animated APNG + animated AVIF rendered directly as Drawables in PhotoFragment.
+    // Sketch handles *static* AVIF via BitmapFactory (API 31+) / BitmapFactoryDecoder.
+    // For animated AVIF and all animated APNG the penfeizhou libs are used directly.
+    implementation(libs.apng)
+    implementation(libs.awebp)
+    implementation(libs.avif)
+
+    // JXL (still + animated) – standalone coder used by our custom JxlSketchDecoder.
+    // This replaces the old jxl-coder-glide integration.
+    implementation(libs.jxl.coder)
 
     implementation(libs.bundles.room)
     ksp(libs.androidx.room.compiler)
