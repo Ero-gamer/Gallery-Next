@@ -1,0 +1,38 @@
+name: Fetch Upstream Devel
+
+on:
+  workflow_dispatch:
+
+env:
+  TARGET_BRANCH: "main"
+
+jobs:
+  sync-upstream:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Kotatsu-Next
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git Identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch and Create Branch
+        run: |
+          # 1. Add upstream and fetch
+          git remote add upstream https://github.com/Ero-gamer/Gallery-Next-.git
+          git fetch upstream main
+          
+          # 2. Create/Reset the 'devel2' branch locally based on upstream
+          git checkout -B ${{ env.TARGET_BRANCH }} upstream/main
+          
+      - name: Push to Origin
+        run: |
+          # 5. Push the cleaned 'devel2' branch to your repo
+          git push origin ${{ env.TARGET_BRANCH }} --force
