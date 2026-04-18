@@ -32,7 +32,7 @@ gestureviews = "e706487a14"
 subsamplingScaleImageView = "d705c3c4ad"
 jxlCoder = "2.6.0"
 #Sketch image loading (replaces Glide + Picasso)
-sketch = "4.0.3"
+sketch = "4.4.0"
 #build
 app-build-compileSDKVersion = "36"
 app-build-targetSDK = "36"
