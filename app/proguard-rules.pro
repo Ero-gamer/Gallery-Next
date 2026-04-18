@@ -3,12 +3,6 @@
 -dontwarn org.fossify.**
 -dontwarn org.apache.**
 
-# Picasso
--dontwarn javax.annotation.**
--keepnames class okhttp3.internal.publicsuffix.PublicSuffixDatabase
--dontwarn org.codehaus.mojo.animal_sniffer.*
--dontwarn okhttp3.internal.platform.ConscryptPlatform
-
 -keepclassmembers class * implements android.os.Parcelable {
     static ** CREATOR;
 }
@@ -22,5 +16,17 @@ native <methods>;
 # Reprint
 -keep class com.github.ajalt.reprint.module.** { *; }
 
+# Sketch image loader
+-keep class com.github.panpf.sketch.** { *; }
+-dontwarn com.github.panpf.sketch.**
+
+# JXL decoder
 -keep class com.awxkee.jxlcoder.** { *; }
-class com.awxkee.jxlcoder.** { *; }
+-dontwarn com.awxkee.jxlcoder.**
+
+# Penfeizhou animated image libs (APNG, AVIF, animated WebP)
+-keep class com.github.penfeizhou.animation.** { *; }
+-dontwarn com.github.penfeizhou.animation.**
+
+# OkIO (used by Sketch internally)
+-dontwarn okio.**
