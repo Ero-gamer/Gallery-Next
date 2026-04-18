@@ -7,9 +7,13 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.widget.RemoteViews
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.engine.DiskCacheStrategy
-import com.bumptech.glide.request.RequestOptions
+import com.github.panpf.sketch.BitmapImage
+import com.github.panpf.sketch.cache.CachePolicy
+import com.github.panpf.sketch.request.ImageRequest
+import com.github.panpf.sketch.request.ImageResult
+import com.github.panpf.sketch.resize.Precision
+import com.github.panpf.sketch.resize.Scale
+import com.github.panpf.sketch.sketch
 import org.fossify.commons.extensions.applyColorFilter
 import org.fossify.commons.extensions.getFileSignature
 import org.fossify.commons.extensions.setText
@@ -24,12 +28,15 @@ import org.fossify.gallery.extensions.widgetsDB
 import org.fossify.gallery.models.Widget
 
 class MyWidgetProvider : AppWidgetProvider() {
+
     private fun setupAppOpenIntent(context: Context, views: RemoteViews, id: Int, widget: Widget) {
         val intent = Intent(context, MediaActivity::class.java).apply {
             putExtra(DIRECTORY, widget.folderPath)
         }
-
-        val pendingIntent = PendingIntent.getActivity(context, widget.widgetId, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val pendingIntent = PendingIntent.getActivity(
+            context, widget.widgetId, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
         views.setOnClickPendingIntent(id, pendingIntent)
     }
 
@@ -46,31 +53,34 @@ class MyWidgetProvider : AppWidgetProvider() {
                 }
 
                 val path = context.directoryDB.getDirectoryThumbnail(it.folderPath) ?: return@forEach
-                val options = RequestOptions()
-                    .signature(path.getFileSignature())
-                    .diskCacheStrategy(DiskCacheStrategy.RESOURCE)
-
-                if (context.config.cropThumbnails) {
-                    options.centerCrop()
-                } else {
-                    options.fitCenter()
-                }
 
                 val density = context.resources.displayMetrics.density
                 val appWidgetOptions = appWidgetManager.getAppWidgetOptions(appWidgetIds.first())
                 val width = appWidgetOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH)
                 val height = appWidgetOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT)
+                val widgetSize = (maxOf(width, height) * density).toInt()
 
-                val widgetSize = (Math.max(width, height) * density).toInt()
                 try {
-                    val image = Glide.with(context)
-                        .asBitmap()
-                        .load(path)
-                        .apply(options)
-                        .submit(widgetSize, widgetSize)
-                        .get()
-                    views.setImageViewBitmap(R.id.widget_imageview, image)
+                    // Sketch execute() on a background thread returns a decoded Bitmap.
+                    val request = ImageRequest(context, path) {
+                        memoryCacheKeyExtras(mapOf("sig" to path.getFileSignature()))
+                        resultCachePolicy(CachePolicy.ENABLED)
+                        size(widgetSize, widgetSize)
+                        scale(if (config.cropThumbnails) Scale.CENTER_CROP else Scale.CENTER_INSIDE)
+                        precision(if (config.cropThumbnails) Precision.EXACTLY else Precision.LESS_PIXELS)
+                        disallowAnimatedImage()
+                    }
+
+                    val result = kotlinx.coroutines.runBlocking { context.sketch.execute(request) }
+                    val bitmap = (result as? ImageResult.Success)?.image.let { img ->
+                        (img as? BitmapImage)?.bitmap
+                    }
+
+                    if (bitmap != null) {
+                        views.setImageViewBitmap(R.id.widget_imageview, bitmap)
+                    }
                 } catch (e: Exception) {
+                    // Keep current widget image on error
                 }
 
                 setupAppOpenIntent(context, views, R.id.widget_holder, it)
@@ -83,7 +93,12 @@ class MyWidgetProvider : AppWidgetProvider() {
         }
     }
 
-    override fun onAppWidgetOptionsChanged(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int, newOptions: Bundle) {
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: Bundle,
+    ) {
         super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
         onUpdate(context, appWidgetManager, intArrayOf(appWidgetId))
     }
