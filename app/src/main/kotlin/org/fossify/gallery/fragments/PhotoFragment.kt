@@ -501,7 +501,7 @@ class PhotoFragment : ViewPagerFragment() {
 
         binding.gesturesView.loadImage(path) {
             // Cache key extra for rotation-busting
-            memoryCacheKey(mMedium.getKey()))
+            memoryCacheKey(mMedium.getKey())
 
             // Disable cache when the image has been manually rotated so the rotated
             // version is always freshly loaded
