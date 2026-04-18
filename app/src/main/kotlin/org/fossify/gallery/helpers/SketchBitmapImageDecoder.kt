@@ -6,6 +6,7 @@ import android.net.Uri
 import com.davemorrissey.labs.subscaleview.ImageDecoder
 import com.github.panpf.sketch.BitmapImage
 import com.github.panpf.sketch.cache.CachePolicy
+import com.github.panpf.sketch.request.disallowAnimatedImage
 import com.github.panpf.sketch.request.ImageRequest
 import com.github.panpf.sketch.request.ImageResult
 import com.github.panpf.sketch.sketch
@@ -41,14 +42,12 @@ class SketchBitmapImageDecoder(
         val request = ImageRequest(context, path) {
             // Use file signature as a cache-key extra so stale cache entries are skipped
             // after the file has been modified (e.g. after in-place rotation).
-            memoryCacheKeyExtras(mapOf("sig" to cacheKey))
-            resultCacheKeyExtras(mapOf("sig" to cacheKey))
+            memoryCacheKey(cacheKey)
 
             // Load at original resolution – SSIV handles its own tiling downsampling.
             size(Size(Int.MAX_VALUE, Int.MAX_VALUE))
 
-            // Force ARGB_8888 for maximum compatibility with SSIV tile rendering.
-            colorType(Bitmap.Config.ARGB_8888)
+            // ARGB_8888 is Sketch's default for Android; no explicit colorType call needed.
 
             // Apply inverse rotation so the Bitmap is upright; SSIV will then apply its own
             // orientation correction on top if needed.
