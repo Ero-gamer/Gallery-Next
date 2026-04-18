@@ -11,7 +11,7 @@ import android.widget.ImageView
 import android.widget.Toast
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.view.allViews
-import com.bumptech.glide.Glide
+import com.github.panpf.sketch.util.SketchUtils
 import com.qtalk.recyclerviewfastscroller.RecyclerViewFastScroller
 import org.fossify.commons.activities.BaseSimpleActivity
 import org.fossify.commons.adapters.MyRecyclerViewAdapter
@@ -253,7 +253,7 @@ class MediaAdapter(
             val itemView = holder.itemView
             val tmb = itemView.allViews.firstOrNull { it.id == R.id.medium_thumbnail }
             if (tmb != null) {
-                Glide.with(activity).clear(tmb)
+                SketchUtils.dispose(tmb)
             }
         }
     }
