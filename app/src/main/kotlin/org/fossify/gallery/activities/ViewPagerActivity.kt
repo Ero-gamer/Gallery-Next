@@ -31,13 +31,11 @@ import androidx.core.graphics.drawable.toDrawable
 import androidx.exifinterface.media.ExifInterface
 import androidx.print.PrintHelper
 import androidx.viewpager.widget.ViewPager
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.DataSource
-import com.bumptech.glide.load.engine.DiskCacheStrategy
-import com.bumptech.glide.load.engine.GlideException
-import com.bumptech.glide.request.RequestListener
-import com.bumptech.glide.request.RequestOptions
-import com.bumptech.glide.request.target.Target
+import com.github.panpf.sketch.BitmapImage
+import com.github.panpf.sketch.cache.CachePolicy
+import com.github.panpf.sketch.request.ImageRequest
+import com.github.panpf.sketch.request.ImageResult
+import com.github.panpf.sketch.sketch
 import com.google.android.material.appbar.AppBarLayout
 import org.fossify.commons.dialogs.PropertiesDialog
 import org.fossify.commons.dialogs.RenameItemDialog
@@ -1112,31 +1110,28 @@ class ViewPagerActivity : BaseViewerActivity(), ViewPager.OnPageChangeListener, 
                 requestedHeight = MAX_PRINT_SIDE_SIZE
             }
 
-            val options = RequestOptions()
-                .skipMemoryCache(true)
-                .diskCacheStrategy(DiskCacheStrategy.NONE)
+            val request = ImageRequest(this, path) {
+                    memoryCachePolicy(CachePolicy.DISABLED)
+                    resultCachePolicy(CachePolicy.DISABLED)
+                    size(requestedWidth, requestedHeight)
+                    disallowAnimatedImage()
+                }
 
-            Glide.with(this)
-                .asBitmap()
-                .load(path)
-                .apply(options)
-                .listener(object : RequestListener<Bitmap> {
-                    override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Bitmap>, isFirstResource: Boolean): Boolean {
-                        showErrorToast(e?.localizedMessage ?: "")
-                        return false
+                ensureBackgroundThread {
+                    try {
+                        val result = kotlinx.coroutines.runBlocking { sketch.execute(request) }
+                        val bitmap = (result as? ImageResult.Success)?.image.let { img ->
+                            (img as? BitmapImage)?.bitmap
+                        }
+                        if (bitmap != null) {
+                            runOnUiThread { printHelper.printBitmap(path.getFilenameFromPath(), bitmap) }
+                        } else {
+                            runOnUiThread { showErrorToast(getString(org.fossify.commons.R.string.unknown_error_occurred)) }
+                        }
+                    } catch (e: Exception) {
+                        runOnUiThread { showErrorToast(e.localizedMessage ?: "") }
                     }
-
-                    override fun onResourceReady(
-                        bitmap: Bitmap,
-                        model: Any,
-                        target: Target<Bitmap>,
-                        dataSource: DataSource,
-                        isFirstResource: Boolean,
-                    ): Boolean {
-                        printHelper.printBitmap(path.getFilenameFromPath(), bitmap)
-                        return false
-                    }
-                }).submit(requestedWidth, requestedHeight)
+                }
         } catch (e: Exception) {
         }
     }
