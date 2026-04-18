@@ -25,13 +25,14 @@ jobs:
 
       - name: Build Signed Foss Release
         run: |
-          # 1. Create the physical file from your secret
-          echo "${{ secrets.RELEASE_STORE_FILE }}" | base64 -d > release.keystore
-          
-          # 2. Run Gradle with Environment Variables mapped to Secrets
+          # Decode the keystore to the repo root
+          echo "${{ secrets.RELEASE_STORE_FILE }}" | base64 -d > "$GITHUB_WORKSPACE/release.keystore"
+
+          # Pass the absolute path so Gradle resolves it correctly regardless
+          # of which module's project directory is the working context
           ./gradlew assembleFossRelease --no-daemon --stacktrace
         env:
-          SIGNING_STORE_FILE: release.keystore
+          SIGNING_STORE_FILE: ${{ github.workspace }}/release.keystore
           SIGNING_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
