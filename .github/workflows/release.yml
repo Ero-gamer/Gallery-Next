@@ -21,22 +21,24 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
         with:
-          # Uses the Gradle version declared in gradle/wrapper/gradle-wrapper.properties
           gradle-version: wrapper
 
-      - name: Build Release APK
-        # We inject the signing configuration via -P parameters to force the use of the debug key
+      - name: Build Signed Foss Release
         run: |
-          ./gradlew assembleRelease \
-            -Pandroid.injected.signing.store.file=$(@ -f ~/.android/debug.keystore) \
-            -Pandroid.injected.signing.store.password=android \
-            -Pandroid.injected.signing.key.alias=androiddebugkey \
-            -Pandroid.injected.signing.key.password=android \
-            --no-daemon --stacktrace
+          # 1. Create the physical file from your secret
+          echo "${{ secrets.RELEASE_STORE_FILE }}" | base64 -d > release.keystore
+          
+          # 2. Run Gradle with Environment Variables mapped to Secrets
+          ./gradlew assembleFossRelease --no-daemon --stacktrace
+        env:
+          SIGNING_STORE_FILE: release.keystore
+          SIGNING_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
 
-      - name: Upload APK
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v7
         with:
-          name: Kotatsu-Next-release
-          path: app/build/outputs/apk/release/*.apk
+          path: app/build/outputs/apk/foss/release/*.apk
           if-no-files-found: error
+          archive: false
