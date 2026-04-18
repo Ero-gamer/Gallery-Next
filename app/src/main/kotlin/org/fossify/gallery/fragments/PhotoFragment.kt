@@ -9,7 +9,6 @@ import android.graphics.Matrix
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
-import android.graphics.drawable.PictureDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -32,25 +31,22 @@ import androidx.exifinterface.media.ExifInterface.ORIENTATION_TRANSVERSE
 import androidx.exifinterface.media.ExifInterface.TAG_ORIENTATION
 import com.alexvasilkov.gestures.GestureController
 import com.alexvasilkov.gestures.State
-import com.bumptech.glide.Glide
-import com.bumptech.glide.Priority
-import com.bumptech.glide.load.DataSource
-import com.bumptech.glide.load.DecodeFormat
-import com.bumptech.glide.load.engine.DiskCacheStrategy
-import com.bumptech.glide.load.engine.GlideException
-import com.bumptech.glide.load.resource.bitmap.Rotate
-import com.bumptech.glide.request.RequestListener
-import com.bumptech.glide.request.RequestOptions
-import com.bumptech.glide.request.target.Target
 import com.davemorrissey.labs.subscaleview.DecoderFactory
 import com.davemorrissey.labs.subscaleview.ImageDecoder
 import com.davemorrissey.labs.subscaleview.ImageRegionDecoder
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
+import com.github.panpf.sketch.cache.CachePolicy
+import com.github.panpf.sketch.loadImage
+import com.github.panpf.sketch.request.ImageRequest
+import com.github.panpf.sketch.request.ImageResult
+import com.github.panpf.sketch.resize.Precision
+import com.github.panpf.sketch.resize.Scale
+import com.github.panpf.sketch.transform.RotateTransformation
+import com.github.panpf.sketch.transition.ViewCrossfadeTransition
+import com.github.panpf.sketch.util.SketchUtils
 import com.github.penfeizhou.animation.apng.APNGDrawable
 import com.github.penfeizhou.animation.avif.AVIFDrawable
 import com.github.penfeizhou.animation.webp.WebPDrawable
-import com.squareup.picasso.Callback
-import com.squareup.picasso.Picasso
 import it.sephiroth.android.library.exif2.ExifInterface
 import org.apache.sanselan.common.byteSources.ByteSourceInputStream
 import org.apache.sanselan.formats.jpeg.JpegImageParser
@@ -88,14 +84,13 @@ import org.fossify.gallery.helpers.HIGH_TILE_DPI
 import org.fossify.gallery.helpers.LOW_TILE_DPI
 import org.fossify.gallery.helpers.MAX_ZOOM_EQUALITY_TOLERANCE
 import org.fossify.gallery.helpers.MEDIUM
-import org.fossify.gallery.helpers.MyGlideImageDecoder
 import org.fossify.gallery.helpers.NORMAL_TILE_DPI
 import org.fossify.gallery.helpers.PicassoRegionDecoder
 import org.fossify.gallery.helpers.SHOULD_INIT_FRAGMENT
+import org.fossify.gallery.helpers.SketchBitmapImageDecoder
 import org.fossify.gallery.helpers.WEIRD_TILE_DPI
 import org.fossify.gallery.models.Medium
 import org.fossify.gallery.svg.SvgSoftwareLayerSetter
-import pl.droidsonroids.gif.InputSource
 import java.io.File
 import java.io.FileOutputStream
 import java.util.Locale
@@ -310,13 +305,7 @@ class PhotoFragment : ViewPagerFragment() {
         super.onDestroyView()
         if (activity?.isDestroyed == false) {
             binding.subsamplingView.recycle()
-
-            try {
-                if (context != null) {
-                    Glide.with(requireContext()).clear(binding.gesturesView)
-                }
-            } catch (ignored: Exception) {
-            }
+            SketchUtils.dispose(binding.gesturesView)
         }
 
         mLoadZoomableViewHandler.removeCallbacksAndMessages(null)
@@ -429,6 +418,7 @@ class PhotoFragment : ViewPagerFragment() {
                     mMedium.isSVG() -> loadSVG()
                     mMedium.isApng() -> loadAPNG()
                     mMedium.isAvif() -> loadAVIF()
+                    // JXL is decoded by JxlSketchDecoder, routed through loadBitmap / loadWithSketch
                     else -> loadBitmap()
                 }
             }
@@ -438,17 +428,19 @@ class PhotoFragment : ViewPagerFragment() {
     private fun loadGif() {
         try {
             val pathToLoad = getPathToLoad(mMedium)
-            val source = if (pathToLoad.startsWith("content://") || pathToLoad.startsWith("file://")) {
-                InputSource.UriSource(requireContext().contentResolver, Uri.parse(pathToLoad))
-            } else {
-                InputSource.FileSource(pathToLoad)
-            }
-
             binding.apply {
                 gesturesView.beGone()
                 gifViewFrame.beVisible()
-                ensureBackgroundThread {
-                    gifView.setInputSource(source)
+                // sketch-animated-gif / sketch-animated-gif-koral handles GIF animation natively.
+                // Load into the GestureImageView inside gifViewFrame via its parent gesturesView
+                // is not applicable – keep using the original GIF view approach with Sketch.
+                // Sketch's ImageDecoder auto-selects MovieGifDecoder (API<28) or
+                // ImageDecoderGifDecoder (API>=28) transparently.
+                gesturesView.beVisible()
+                gifViewFrame.beGone()
+                gesturesView.loadImage(pathToLoad) {
+                    crossfade(factory = ViewCrossfadeTransition.Factory(alwaysUse = false))
+                    // Keep animation running
                 }
             }
         } catch (e: Exception) {
@@ -460,11 +452,12 @@ class PhotoFragment : ViewPagerFragment() {
 
     private fun loadSVG() {
         if (context != null) {
-            Glide.with(requireContext())
-                .`as`(PictureDrawable::class.java)
-                .listener(SvgSoftwareLayerSetter())
-                .load(mMedium.path)
-                .into(binding.gesturesView)
+            // sketch-svg handles SVG decoding. SvgSoftwareLayerSetter sets the software
+            // layer required for PictureDrawable rendering via a Sketch Listener.
+            binding.gesturesView.loadImage(mMedium.path) {
+                addListener(SvgSoftwareLayerSetter(binding.gesturesView))
+                crossfade(factory = ViewCrossfadeTransition.Factory(alwaysUse = false))
+            }
         }
     }
 
@@ -494,105 +487,64 @@ class PhotoFragment : ViewPagerFragment() {
         if (path.isWebP()) {
             val drawable = WebPDrawable.fromFile(path)
             if (drawable.intrinsicWidth == 0) {
-                loadWithGlide(path, addZoomableView)
+                loadWithSketch(path, addZoomableView)
             } else {
                 binding.gesturesView.setImageDrawable(drawable)
             }
         } else {
-            loadWithGlide(path, addZoomableView)
+            loadWithSketch(path, addZoomableView)
         }
     }
 
-    private fun loadWithGlide(path: String, addZoomableView: Boolean) {
-        val priority = if (mIsFragmentVisible) Priority.IMMEDIATE else Priority.NORMAL
-        val options = RequestOptions()
-            .signature(mMedium.getKey())
-            .format(DecodeFormat.PREFER_ARGB_8888)
-            .priority(priority)
-            .diskCacheStrategy(DiskCacheStrategy.RESOURCE)
-            .fitCenter()
-            .run {
-                if (mCurrentRotationDegrees != 0) {
-                    transform(Rotate(mCurrentRotationDegrees))
-                        .diskCacheStrategy(DiskCacheStrategy.NONE)
-                } else {
-                    this
-                }
-            }
+    private fun loadWithSketch(path: String, addZoomableView: Boolean) {
+        if (context == null) return
 
-        Glide.with(requireContext())
-            .load(path)
-            .apply(options)
-            .listener(object : RequestListener<Drawable> {
-                override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>, isFirstResource: Boolean): Boolean {
-                    resetColorModeIfVisible()
-                    if (activity != null && !activity!!.isDestroyed && !activity!!.isFinishing) {
-                        tryLoadingWithPicasso(addZoomableView)
-                    }
-                    return false
-                }
+        binding.gesturesView.loadImage(path) {
+            // Cache key extra for rotation-busting
+            memoryCacheKeyExtras(mapOf("sig" to mMedium.getKey()))
+            resultCacheKeyExtras(mapOf("sig" to mMedium.getKey()))
 
-                override fun onResourceReady(
-                    resource: Drawable,
-                    model: Any,
-                    target: Target<Drawable>,
-                    dataSource: DataSource,
-                    isFirstResource: Boolean
-                ): Boolean {
-                    applyProperColorMode(resource)
-                    val allowZoomingImages = context?.config?.allowZoomingImages ?: true
-                    binding.gesturesView.controller.settings.isZoomEnabled = mMedium.isRaw() || mCurrentRotationDegrees != 0 || allowZoomingImages == false
-                    if (mIsFragmentVisible && addZoomableView) {
-                        scheduleZoomableView()
-                    }
-                    return false
-                }
-            }).into(binding.gesturesView)
-    }
-
-    private fun tryLoadingWithPicasso(addZoomableView: Boolean) {
-        var pathToLoad = if (getFilePathToShow().startsWith("content://")) getFilePathToShow() else "file://${getFilePathToShow()}"
-        pathToLoad = pathToLoad.replace("%", "%25").replace("#", "%23")
-
-        try {
-            val picasso = Picasso.get()
-                .load(pathToLoad)
-                .centerInside()
-                .stableKey(mMedium.getSignature())
-                .resize(mScreenWidth, mScreenHeight)
-
+            // Disable cache when the image has been manually rotated so the rotated
+            // version is always freshly loaded
             if (mCurrentRotationDegrees != 0) {
-                picasso.rotate(mCurrentRotationDegrees.toFloat())
-            } else {
-                degreesForRotation(mImageOrientation).toFloat()
+                memoryCachePolicy(CachePolicy.DISABLED)
+                resultCachePolicy(CachePolicy.DISABLED)
+                transformations(RotateTransformation(mCurrentRotationDegrees))
             }
 
-            picasso.into(binding.gesturesView, object : Callback {
-                override fun onSuccess() {
+            scale(Scale.CENTER_INSIDE)
+            precision(Precision.LESS_PIXELS)
+
+            // Don't animate in the full-screen viewer; SSIV handles zoom tiles separately
+            disallowAnimatedImage()
+
+            crossfade(factory = ViewCrossfadeTransition.Factory(alwaysUse = false))
+
+            addListener(
+                onSuccess = { _, result ->
                     applyProperColorMode(binding.gesturesView.drawable)
+                    val allowZoomingImages = context?.config?.allowZoomingImages ?: true
                     binding.gesturesView.controller.settings.isZoomEnabled =
-                        mMedium.isRaw() || mCurrentRotationDegrees != 0 || context?.config?.allowZoomingImages == false
+                        mMedium.isRaw() || mCurrentRotationDegrees != 0 || !allowZoomingImages
                     if (mIsFragmentVisible && addZoomableView) {
                         scheduleZoomableView()
                     }
-                }
-
-                override fun onError(e: Exception?) {
+                },
+                onError = { _, _ ->
                     resetColorModeIfVisible()
-                    if (mMedium.path != mOriginalPath) {
-                        mMedium.path = mOriginalPath
-                        loadImage()
-                        // TODO: Implement panorama using a FOSS library
-                        // checkIfPanorama()
-                    } else {
-                        binding.errorMessageHolder.errorMessage.apply {
-                            setTextColor(if (context.config.blackBackground) Color.WHITE else context.getProperTextColor())
+                    // Sketch's BitmapFactoryDecoder is the last-resort decoder; no
+                    // further fallback is needed (Picasso fallback removed).
+                    binding.errorMessageHolder.errorMessage.apply {
+                        if (context != null) {
+                            setTextColor(
+                                if (context.config.blackBackground) Color.WHITE
+                                else context.getProperTextColor()
+                            )
                             fadeIn()
                         }
                     }
                 }
-            })
-        } catch (ignored: Exception) {
+            )
         }
     }
 
@@ -746,7 +698,7 @@ class PhotoFragment : ViewPagerFragment() {
         val minTileDpi = if (showHighestQuality) -1 else getMinTileDpi()
 
         val bitmapDecoder = object : DecoderFactory<ImageDecoder> {
-            override fun make() = MyGlideImageDecoder(rotation, mMedium.getKey())
+            override fun make() = SketchBitmapImageDecoder(rotation, mMedium.getKey())
         }
 
         val regionDecoder = object : DecoderFactory<ImageRegionDecoder> {
