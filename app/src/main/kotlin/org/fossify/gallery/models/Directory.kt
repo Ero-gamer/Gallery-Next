@@ -2,7 +2,6 @@ package org.fossify.gallery.models
 
 import android.content.Context
 import androidx.room.*
-import com.bumptech.glide.signature.ObjectKey
 import org.fossify.commons.extensions.formatDate
 import org.fossify.commons.extensions.formatSize
 import org.fossify.commons.helpers.*
@@ -43,5 +42,9 @@ data class Directory(
 
     fun isRecycleBin() = path == RECYCLE_BIN
 
-    fun getKey() = ObjectKey("$path-$modified")
+    /**
+     * Returns a plain String key used for Sketch cache-key extras.
+     * Previously returned a Glide ObjectKey – now a String to remove the Glide dependency.
+     */
+    fun getKey(): String = "$path-$modified"
 }
