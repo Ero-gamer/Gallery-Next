@@ -9,6 +9,7 @@ import android.os.Bundle
 import android.widget.RemoteViews
 import com.github.panpf.sketch.BitmapImage
 import com.github.panpf.sketch.cache.CachePolicy
+import com.github.panpf.sketch.request.disallowAnimatedImage
 import com.github.panpf.sketch.request.ImageRequest
 import com.github.panpf.sketch.request.ImageResult
 import com.github.panpf.sketch.resize.Precision
@@ -63,11 +64,11 @@ class MyWidgetProvider : AppWidgetProvider() {
                 try {
                     // Sketch execute() on a background thread returns a decoded Bitmap.
                     val request = ImageRequest(context, path) {
-                        memoryCacheKeyExtras(mapOf("sig" to path.getFileSignature()))
+                        memoryCacheKey(path.getFileSignature())
                         resultCachePolicy(CachePolicy.ENABLED)
                         size(widgetSize, widgetSize)
-                        scale(if (config.cropThumbnails) Scale.CENTER_CROP else Scale.CENTER_INSIDE)
-                        precision(if (config.cropThumbnails) Precision.EXACTLY else Precision.LESS_PIXELS)
+                        scale(Scale.CENTER_CROP)  // always crop for widget thumbnails
+                        precision(Precision.EXACTLY)
                         disallowAnimatedImage()
                     }
 
