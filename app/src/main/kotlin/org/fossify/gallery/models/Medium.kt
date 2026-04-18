@@ -2,7 +2,6 @@ package org.fossify.gallery.models
 
 import android.content.Context
 import androidx.room.*
-import com.bumptech.glide.signature.ObjectKey
 import org.fossify.commons.extensions.*
 import org.fossify.commons.helpers.*
 import org.fossify.commons.models.FileDirItem
@@ -53,6 +52,8 @@ data class Medium(
     fun isApng() = name.isApng()
 
     fun isAvif() = name.endsWith(".avif", true) // switch to commons extension.
+
+    fun isJxl() = name.endsWith(".jxl", true)
 
     fun isHidden() = name.startsWith('.')
 
@@ -108,7 +109,11 @@ data class Medium(
         return "$path-$lastModified-$size"
     }
 
-    fun getKey() = ObjectKey(getSignature())
+    /**
+     * Returns a plain String key used for Sketch cache-key extras.
+     * Previously returned a Glide ObjectKey – now a String to remove the Glide dependency.
+     */
+    fun getKey(): String = getSignature()
 
     fun toFileDirItem() = FileDirItem(path, name, false, 0, size, modified, mediaStoreId)
 }
