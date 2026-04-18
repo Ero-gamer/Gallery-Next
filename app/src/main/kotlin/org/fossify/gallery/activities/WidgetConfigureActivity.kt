@@ -8,7 +8,6 @@ import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.widget.RemoteViews
-import com.bumptech.glide.signature.ObjectKey
 import org.fossify.commons.dialogs.ColorPickerDialog
 import org.fossify.commons.extensions.*
 import org.fossify.commons.helpers.ensureBackgroundThread
@@ -178,7 +177,7 @@ class WidgetConfigureActivity : SimpleActivity() {
             val path = directoryDB.getDirectoryThumbnail(folderPath)
             if (path != null) {
                 runOnUiThread {
-                    val signature = ObjectKey(System.currentTimeMillis().toString())
+                    val signature = System.currentTimeMillis().toString()
                     loadImageBase(path, binding.configImage, config.cropThumbnails, ROUNDED_CORNERS_NONE, signature)
                 }
             }
