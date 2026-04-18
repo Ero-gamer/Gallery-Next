@@ -2,7 +2,7 @@
 
 <img alt="Logo" src="graphics/icon.webp" width="120" />
 
-Unleash memories, not personal data. Gallery Next is the ultimate photo and video app that's as powerful as it is private. No ads, no tracking, no unnecessary permissions – just an offline gallery app experience.
+# High performance High Quality Gallery based on [Fossify Gallery](https://github.com/FossifyOrg/Gallery) app + [Sketch](https://github.com/panpf/sketch) library.
 
 **🖼️ PHOTO EDITING AT YOUR FINGERTIPS:**  
 Enhance your photos with our basic yet powerful photo editor. Crop, resize, rotate, flip, draw, and apply stunning filters, all without compromising your privacy. Take control of your memories like never before.
