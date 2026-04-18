@@ -21,3 +21,6 @@ native <methods>;
 
 # Reprint
 -keep class com.github.ajalt.reprint.module.** { *; }
+
+-keep class com.awxkee.jxlcoder.** { *; }
+class com.awxkee.jxlcoder.** { *; }
