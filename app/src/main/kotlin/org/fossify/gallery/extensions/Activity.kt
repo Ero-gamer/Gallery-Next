@@ -20,11 +20,12 @@ import android.provider.Settings
 import android.util.DisplayMetrics
 import androidx.appcompat.app.AppCompatActivity
 import androidx.exifinterface.media.ExifInterface
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.DecodeFormat
-import com.bumptech.glide.load.engine.DiskCacheStrategy
-import com.bumptech.glide.request.RequestOptions
-import com.squareup.picasso.Picasso
+import com.github.panpf.sketch.BitmapImage
+import com.github.panpf.sketch.request.ImageRequest
+import com.github.panpf.sketch.request.ImageResult
+import com.github.panpf.sketch.request.disallowAnimatedImage
+import com.github.panpf.sketch.sketch
+import kotlinx.coroutines.runBlocking
 import org.fossify.commons.activities.BaseSimpleActivity
 import org.fossify.commons.dialogs.ConfirmationDialog
 import org.fossify.commons.dialogs.SecurityDialog
@@ -743,12 +744,10 @@ fun Activity.fileRotatedSuccessfully(path: String, lastModified: Long) {
         updateLastModified(path, lastModified)
     }
 
-    Picasso.get().invalidate(path.getFileKey(lastModified))
-    // we cannot refresh a specific image in Glide Cache, so just clear it all
-    val glide = Glide.get(applicationContext)
-    glide.clearDiskCache()
-    runOnUiThread {
-        glide.clearMemory()
+    // Clear Sketch caches so rotated images are reloaded fresh.
+    applicationContext.sketch.memoryCache.clear()
+    ensureBackgroundThread {
+        applicationContext.sketch.resultCache.clear()
     }
 }
 
@@ -857,7 +856,15 @@ fun BaseSimpleActivity.resizeImage(oldPath: String, newPath: String, size: Point
     val inputStream = contentResolver.openInputStream(Uri.fromFile(File(oldPath)))
     oldExif = ExifInterface(inputStream!!)
 
-    val newBitmap = Glide.with(applicationContext).asBitmap().load(oldPath).submit(size.x, size.y).get()
+    val reqResult = runBlocking {
+        applicationContext.sketch.execute(
+            ImageRequest(applicationContext, oldPath) {
+                size(size.x, size.y)
+            }
+        )
+    }
+    val newBitmap = ((reqResult as? ImageResult.Success)?.image as? BitmapImage)?.bitmap
+        ?: return
 
     val newFile = File(newPath)
     val newFileDirItem = FileDirItem(newPath, newPath.getFilenameFromPath())
@@ -902,25 +909,23 @@ fun saveFile(path: String, bitmap: Bitmap, out: FileOutputStream, degrees: Int) 
 
 fun Activity.getShortcutImage(tmb: String, drawable: Drawable, callback: () -> Unit) {
     ensureBackgroundThread {
-        val options = RequestOptions()
-            .format(DecodeFormat.PREFER_ARGB_8888)
-            .skipMemoryCache(true)
-            .diskCacheStrategy(DiskCacheStrategy.NONE)
-            .fitCenter()
-
         val size = resources.getDimension(org.fossify.commons.R.dimen.shortcut_size).toInt()
-        val builder = Glide.with(this)
-            .asDrawable()
-            .load(tmb)
-            .apply(options)
-            .centerCrop()
-            .into(size, size)
-
         try {
-            (drawable as LayerDrawable).setDrawableByLayerId(R.id.shortcut_image, builder.get())
+            val result = runBlocking {
+                sketch.execute(
+                    ImageRequest(this@getShortcutImage, tmb) {
+                        size(size, size)
+                        disallowAnimatedImage()
+                    }
+                )
+            }
+            val bmp = ((result as? ImageResult.Success)?.image as? BitmapImage)?.bitmap
+            if (bmp != null) {
+                val bmpDrawable = android.graphics.drawable.BitmapDrawable(resources, bmp)
+                (drawable as LayerDrawable).setDrawableByLayerId(R.id.shortcut_image, bmpDrawable)
+            }
         } catch (e: Exception) {
         }
-
         runOnUiThread {
             callback()
         }
