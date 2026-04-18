@@ -16,9 +16,9 @@ import com.github.panpf.sketch.resize.Precision
 import com.github.panpf.sketch.resize.Scale
 import com.github.panpf.sketch.sketch
 import org.fossify.commons.extensions.applyColorFilter
-import org.fossify.commons.extensions.getFileSignature
 import org.fossify.commons.extensions.setText
 import org.fossify.commons.extensions.setVisibleIf
+import java.io.File
 import org.fossify.commons.helpers.ensureBackgroundThread
 import org.fossify.gallery.R
 import org.fossify.gallery.activities.MediaActivity
@@ -64,7 +64,7 @@ class MyWidgetProvider : AppWidgetProvider() {
                 try {
                     // Sketch execute() on a background thread returns a decoded Bitmap.
                     val request = ImageRequest(context, path) {
-                        memoryCacheKey(path.getFileSignature())
+                        memoryCacheKey("$path-${java.io.File(path).lastModified()}")
                         resultCachePolicy(CachePolicy.ENABLED)
                         size(widgetSize, widgetSize)
                         scale(Scale.CENTER_CROP)  // always crop for widget thumbnails
