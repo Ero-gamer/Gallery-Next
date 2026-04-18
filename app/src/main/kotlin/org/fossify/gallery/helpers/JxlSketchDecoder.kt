@@ -2,8 +2,6 @@ package org.fossify.gallery.helpers
 
 import android.graphics.Bitmap
 import com.awxkee.jxlcoder.JxlCoder
-import com.awxkee.jxlcoder.JxlDecodeSpeed
-import com.awxkee.jxlcoder.JxlPreferredColorConfig
 import com.github.panpf.sketch.BitmapImage
 import com.github.panpf.sketch.asImage
 import com.github.panpf.sketch.decode.DecodeResult
@@ -52,11 +50,7 @@ class JxlSketchDecoder(
             // Decode just enough to retrieve dimensions without full decode.
             val bytes = dataSource.openSource().buffer().readByteArray()
             val size = try {
-                val bmp = JxlCoder.decode(
-                    byteArray = bytes,
-                    preferredColorConfig = JxlPreferredColorConfig.RGBA_8888,
-                    decodeSpeed = JxlDecodeSpeed.FASTEST,
-                )
+                val bmp = JxlCoder().decode(bytes)
                 Size(bmp.width, bmp.height)
             } catch (e: Exception) {
                 Size(0, 0)
@@ -66,11 +60,7 @@ class JxlSketchDecoder(
 
     override fun decode(): ImageData {
         val bytes = dataSource.openSource().buffer().readByteArray()
-        val bitmap: Bitmap = JxlCoder.decode(
-            byteArray = bytes,
-            preferredColorConfig = JxlPreferredColorConfig.RGBA_8888,
-            decodeSpeed = JxlDecodeSpeed.BALANCED,
-        )
+        val bitmap: Bitmap = JxlCoder().decode(bytes)
 
         val imageSize = Size(bitmap.width, bitmap.height)
         val resize = requestContext.computeResize(imageSize)
