@@ -1,31 +1,24 @@
 package org.fossify.gallery.svg
 
-import android.graphics.drawable.PictureDrawable
 import android.widget.ImageView
+import com.github.panpf.sketch.request.ImageRequest
+import com.github.panpf.sketch.request.ImageResult
+import com.github.panpf.sketch.request.Listener
 
-import com.bumptech.glide.load.DataSource
-import com.bumptech.glide.load.engine.GlideException
-import com.bumptech.glide.request.RequestListener
-import com.bumptech.glide.request.target.ImageViewTarget
-import com.bumptech.glide.request.target.Target
+/**
+ * Sketch [Listener] equivalent of the old Glide `SvgSoftwareLayerSetter`.
+ *
+ * Enables the software layer on the target [ImageView] when an SVG loads successfully so that
+ * `PictureDrawable` renders correctly, and clears it on failure. Attach via
+ * `ImageRequest.Builder.addListener(SvgSoftwareLayerSetter(imageView))`.
+ */
+class SvgSoftwareLayerSetter(private val view: ImageView) : Listener {
 
-class SvgSoftwareLayerSetter : RequestListener<PictureDrawable> {
-
-    override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<PictureDrawable>, isFirstResource: Boolean): Boolean {
-        val view = (target as ImageViewTarget<*>).view
-        view.setLayerType(ImageView.LAYER_TYPE_NONE, null)
-        return false
+    override fun onSuccess(request: ImageRequest, result: ImageResult.Success) {
+        view.setLayerType(ImageView.LAYER_TYPE_SOFTWARE, null)
     }
 
-    override fun onResourceReady(
-        resource: PictureDrawable,
-        model: Any,
-        target: Target<PictureDrawable>,
-        dataSource: DataSource,
-        isFirstResource: Boolean
-    ): Boolean {
-        val view = (target as ImageViewTarget<*>).view
-        view.setLayerType(ImageView.LAYER_TYPE_SOFTWARE, null)
-        return false
+    override fun onError(request: ImageRequest, error: ImageResult.Error) {
+        view.setLayerType(ImageView.LAYER_TYPE_NONE, null)
     }
 }
