@@ -9,7 +9,6 @@ import com.github.panpf.sketch.cache.CachePolicy
 import com.github.panpf.sketch.loadImage
 import com.github.panpf.sketch.resize.Precision
 import com.github.panpf.sketch.resize.Scale
-import com.github.panpf.sketch.transition.ViewCrossfadeTransition
 import org.fossify.commons.extensions.getFileKey
 import org.fossify.gallery.R
 import org.fossify.gallery.databinding.PortraitPhotoItemBinding
@@ -66,13 +65,11 @@ class PortraitPhotosAdapter(
                 // Load thumbnail with Sketch – replaces Glide.
                 // Use file-key signature as cache-key extra for cache-busting after edits.
                 portraitPhotoItemThumbnail.loadImage(photo.ifEmpty { null }) {
-                    memoryCacheKeyExtras(mapOf("sig" to photo.getFileKey()))
+                    memoryCacheKey(photo.getFileKey())
                     resultCachePolicy(CachePolicy.ENABLED)
                     scale(Scale.CENTER_CROP)
                     precision(Precision.EXACTLY)
-                    crossfade(
-                        factory = ViewCrossfadeTransition.Factory(alwaysUse = false)
-                    )
+                    crossfade(alwaysUse = false)
                 }
 
                 if (photo.isNotEmpty()) {
