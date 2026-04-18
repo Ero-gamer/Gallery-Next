@@ -36,13 +36,13 @@ import com.davemorrissey.labs.subscaleview.ImageDecoder
 import com.davemorrissey.labs.subscaleview.ImageRegionDecoder
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
 import com.github.panpf.sketch.cache.CachePolicy
+import com.github.panpf.sketch.request.disallowAnimatedImage
 import com.github.panpf.sketch.loadImage
 import com.github.panpf.sketch.request.ImageRequest
 import com.github.panpf.sketch.request.ImageResult
 import com.github.panpf.sketch.resize.Precision
 import com.github.panpf.sketch.resize.Scale
 import com.github.panpf.sketch.transform.RotateTransformation
-import com.github.panpf.sketch.transition.ViewCrossfadeTransition
 import com.github.panpf.sketch.util.SketchUtils
 import com.github.penfeizhou.animation.apng.APNGDrawable
 import com.github.penfeizhou.animation.avif.AVIFDrawable
@@ -439,7 +439,7 @@ class PhotoFragment : ViewPagerFragment() {
                 gesturesView.beVisible()
                 gifViewFrame.beGone()
                 gesturesView.loadImage(pathToLoad) {
-                    crossfade(factory = ViewCrossfadeTransition.Factory(alwaysUse = false))
+                    crossfade(alwaysUse = false)
                     // Keep animation running
                 }
             }
@@ -456,7 +456,7 @@ class PhotoFragment : ViewPagerFragment() {
             // layer required for PictureDrawable rendering via a Sketch Listener.
             binding.gesturesView.loadImage(mMedium.path) {
                 addListener(SvgSoftwareLayerSetter(binding.gesturesView))
-                crossfade(factory = ViewCrossfadeTransition.Factory(alwaysUse = false))
+                crossfade(alwaysUse = false)
             }
         }
     }
@@ -501,8 +501,7 @@ class PhotoFragment : ViewPagerFragment() {
 
         binding.gesturesView.loadImage(path) {
             // Cache key extra for rotation-busting
-            memoryCacheKeyExtras(mapOf("sig" to mMedium.getKey()))
-            resultCacheKeyExtras(mapOf("sig" to mMedium.getKey()))
+            memoryCacheKey(mMedium.getKey()))
 
             // Disable cache when the image has been manually rotated so the rotated
             // version is always freshly loaded
@@ -512,13 +511,13 @@ class PhotoFragment : ViewPagerFragment() {
                 transformations(RotateTransformation(mCurrentRotationDegrees))
             }
 
-            scale(Scale.CENTER_INSIDE)
+            // fit: Precision.LESS_PIXELS handles this
             precision(Precision.LESS_PIXELS)
 
             // Don't animate in the full-screen viewer; SSIV handles zoom tiles separately
             disallowAnimatedImage()
 
-            crossfade(factory = ViewCrossfadeTransition.Factory(alwaysUse = false))
+            crossfade(alwaysUse = false)
 
             addListener(
                 onSuccess = { _, result ->
