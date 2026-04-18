@@ -5,17 +5,21 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.engine.DiskCacheStrategy
-import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
-import com.bumptech.glide.request.RequestOptions
-import com.bumptech.glide.signature.ObjectKey
+import com.github.panpf.sketch.cache.CachePolicy
+import com.github.panpf.sketch.loadImage
+import com.github.panpf.sketch.resize.Precision
+import com.github.panpf.sketch.resize.Scale
+import com.github.panpf.sketch.transition.ViewCrossfadeTransition
 import org.fossify.commons.extensions.getFileKey
 import org.fossify.gallery.R
 import org.fossify.gallery.databinding.PortraitPhotoItemBinding
 
-class PortraitPhotosAdapter(val context: Context, val photos: ArrayList<String>, val sideElementWidth: Int, val itemClick: (Int, Int) -> Unit) :
-    RecyclerView.Adapter<PortraitPhotosAdapter.ViewHolder>() {
+class PortraitPhotosAdapter(
+    val context: Context,
+    val photos: ArrayList<String>,
+    val sideElementWidth: Int,
+    val itemClick: (Int, Int) -> Unit,
+) : RecyclerView.Adapter<PortraitPhotosAdapter.ViewHolder>() {
 
     var currentSelectionIndex = -1
     var views = HashMap<Int, View>()
@@ -59,16 +63,17 @@ class PortraitPhotosAdapter(val context: Context, val photos: ArrayList<String>,
                     strokeBackground
                 }
 
-                val options = RequestOptions()
-                    .signature(ObjectKey(photo.getFileKey()))
-                    .diskCacheStrategy(DiskCacheStrategy.RESOURCE)
-                    .centerCrop()
-
-                Glide.with(context)
-                    .load(photo)
-                    .transition(DrawableTransitionOptions.withCrossFade())
-                    .apply(options)
-                    .into(portraitPhotoItemThumbnail)
+                // Load thumbnail with Sketch – replaces Glide.
+                // Use file-key signature as cache-key extra for cache-busting after edits.
+                portraitPhotoItemThumbnail.loadImage(photo.ifEmpty { null }) {
+                    memoryCacheKeyExtras(mapOf("sig" to photo.getFileKey()))
+                    resultCachePolicy(CachePolicy.ENABLED)
+                    scale(Scale.CENTER_CROP)
+                    precision(Precision.EXACTLY)
+                    crossfade(
+                        factory = ViewCrossfadeTransition.Factory(alwaysUse = false)
+                    )
+                }
 
                 if (photo.isNotEmpty()) {
                     root.isClickable = true
