@@ -35,6 +35,7 @@ import com.github.panpf.sketch.BitmapImage
 import com.github.panpf.sketch.cache.CachePolicy
 import com.github.panpf.sketch.request.ImageRequest
 import com.github.panpf.sketch.request.ImageResult
+import com.github.panpf.sketch.request.disallowAnimatedImage
 import com.github.panpf.sketch.sketch
 import com.google.android.material.appbar.AppBarLayout
 import org.fossify.commons.dialogs.PropertiesDialog
