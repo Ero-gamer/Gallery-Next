@@ -31,3 +31,10 @@ Experience the beauty of intuitive material design with dynamic themes. Want mor
 <img alt="App image" src="fastlane/metadata/android/en-US/images/phoneScreenshots/2_en-US.png" width="30%">
 <img alt="App image" src="fastlane/metadata/android/en-US/images/phoneScreenshots/3_en-US.png" width="30%">
 </div>
+
+### Third-Party Credits
+This project utilizes the following open-source library:
+* **[Sketch](https://github.com/panpf/sketch)**: Developed by panpf, licensed under the [Apache License 2.0](licenses/APACHE-2.0).
+
+---
+*Note: This application is distributed under the terms of the GNU General Public License v3.0 (GPL-3.0).*
